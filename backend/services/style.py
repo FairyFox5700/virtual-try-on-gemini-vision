@@ -1,5 +1,6 @@
 import json
 import io
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 from PIL import Image as PIL_Image
 from google import genai
@@ -84,19 +85,24 @@ def analyze_and_style(
     styles = analysis.get("styles", [])[:3]
 
     looks = []
-    for style in styles:
-        # Reinforce the correct gender in the Imagen prompt to prevent gender mismatch
+    def _generate_look(style: dict, index: int) -> tuple[int, dict]:
         outfit_prompt = f"full body portrait of a {detected_gender}, {style['outfit_prompt']}"
         model_image = generate_image(outfit_prompt)
         tryon_result = virtual_try_on(model_image, clothing_image)
-        looks.append(
-            {
-                "name": style["name"],
-                "description": style.get("description", ""),
-                "model_image_base64": image_to_base64(model_image),
-                "tryon_image_base64": image_to_base64(tryon_result),
-            }
-        )
+        return index, {
+            "name": style["name"],
+            "description": style.get("description", ""),
+            "model_image_base64": image_to_base64(model_image),
+            "tryon_image_base64": image_to_base64(tryon_result),
+        }
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {executor.submit(_generate_look, style, i): i for i, style in enumerate(styles)}
+        results = {}
+        for future in as_completed(futures):
+            index, look = future.result()
+            results[index] = look
+    looks = [results[i] for i in sorted(results)]
 
     return {
         "gender": detected_gender,

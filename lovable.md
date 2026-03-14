@@ -62,7 +62,18 @@ Error: red text below the button showing the error message. Button re-enables.
 API: POST /api/try-on (base URL from process.env.NEXT_PUBLIC_API_URL)
 Body: multipart/form-data — person_image (File), clothing_images (File[])
 Response: { results: [{ step: number, clothing_name: string, image_base64: string }] }
-Images: <img src={`data:image/png;base64,${image_base64}`} />
+
+IMPORTANT — base64 image rendering:
+All result images are base64 strings returned by the API. Render them with plain HTML <img> tags.
+DO NOT use next/image — it does not support data: URIs and will break.
+Correct pattern for each result card:
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src={`data:image/jpeg;base64,${result.image_base64}`}
+    alt={result.clothing_name}
+    className="w-full h-auto object-cover rounded-lg"
+  />
+Apply this same pattern for upload previews (use URL.createObjectURL(file) for local file preview).
 ```
 
 ---
@@ -100,7 +111,24 @@ Error: red text message, button re-enables.
 API: POST /api/style (base URL from process.env.NEXT_PUBLIC_API_URL)
 Body: multipart/form-data — clothing_image (File), gender only if "woman" or "man"
 Response: { gender, item_description, styles: [{ name, description, model_image_base64, tryon_image_base64 }] }
-Images: <img src={`data:image/png;base64,${...}`} />
+
+IMPORTANT — base64 image rendering:
+Both images in each style card are base64 strings. Render them with plain HTML <img> tags.
+DO NOT use next/image — it does not support data: URIs and will break.
+Correct pattern for the two images per card:
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src={`data:image/jpeg;base64,${style.model_image_base64}`}
+    alt="AI Model"
+    className="w-full h-auto object-cover rounded"
+  />
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src={`data:image/jpeg;base64,${style.tryon_image_base64}`}
+    alt="With Your Item"
+    className="w-full h-auto object-cover rounded border-2 border-orange-400"
+  />
+For the upload preview also use URL.createObjectURL(file) with a plain <img> tag.
 ```
 
 ---
@@ -138,7 +166,11 @@ Prepare the app for production deployment on Vercel.
 1. Replace every hardcoded http://localhost:8000 with process.env.NEXT_PUBLIC_API_URL
 
 2. In next.config.ts add:
-   - images.remotePatterns allowing data URLs (for base64 images)
+   - DO NOT add images.remotePatterns for data: URIs — Next.js Image component
+     does not support data: URIs at all. Base64 API images are rendered with plain
+     <img> HTML tags as specified in Prompts 2 & 3, so no Next.js image config is needed.
+   - Add eslint: { ignoreDuringBuilds: true } to suppress the @next/next/no-img-element
+     lint error that is raised by the intentional plain <img> tags used for base64 images.
    - async headers() returning:
        source: '/api/:path*'
        headers: [{ key: 'Cache-Control', value: 'no-store' }]
@@ -160,7 +192,7 @@ Prepare the app for production deployment on Vercel.
 
 1. Add `.env.local`:
    ```
-   NEXT_PUBLIC_API_URL=http://localhost:8000
+   NEXT_PUBLIC_API_URL=https://virtual-try-on-backend-1086837693674.europe-west4.run.app
    ```
 
 2. Start the backend:
@@ -183,7 +215,7 @@ gcloud run deploy virtual-try-on-backend \
   --memory 2Gi
 ```
 
-Cloud Run will give you a URL like `https://virtual-try-on-backend-xxxx-ew.a.run.app`
+Backend is already deployed at: `https://virtual-try-on-backend-1086837693674.europe-west4.run.app`
 
 You also need a `Dockerfile` in `backend/`:
 
@@ -196,9 +228,9 @@ COPY . .
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
-Update `config.py` CORS to allow your Vercel domain:
+Update `config.py` CORS to allow your frontend domain:
 ```
-CORS_ORIGINS=https://your-app.vercel.app
+CORS_ORIGINS=https://id-preview--512e32c8-87f1-42a3-b5fd-64fa4dc186e3.lovable.app
 ```
 
 ### Deploy the frontend to Vercel
@@ -207,6 +239,6 @@ CORS_ORIGINS=https://your-app.vercel.app
 2. Import the repo on [vercel.com](https://vercel.com)
 3. Add environment variable in Vercel dashboard:
    ```
-   NEXT_PUBLIC_API_URL=https://virtual-try-on-backend-xxxx-ew.a.run.app
+   NEXT_PUBLIC_API_URL=https://virtual-try-on-backend-1086837693674.europe-west4.run.app
    ```
 4. Deploy — Vercel auto-deploys on every push to main

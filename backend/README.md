@@ -34,10 +34,18 @@ Edit `.env`:
 | `LOCATION` | Vertex AI region for Imagen & Try-On | `europe-west4` |
 | `GEMINI_LOCATION` | Vertex AI region for Gemini | `us-central1` |
 | `OUTPUT_DIR` | Directory to persist generated images | `output` |
-| `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000` |
-| `VIRTUAL_TRY_ON_MODEL` | Virtual Try-On model ID | `virtual-try-on-preview-08-04` |
+| `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000,http://localhost:5173,http://localhost:8080,http://localhost:8000` |
+| `VIRTUAL_TRY_ON_MODEL` | Virtual Try-On model ID | `virtual-try-on-001` |
 | `IMAGE_GENERATION` | Imagen model ID | `imagen-4.0-generate-001` |
 | `GEMINI_MODEL` | Gemini model ID | `gemini-2.5-flash` |
+
+If Vertex AI returns `404 NOT_FOUND` for the configured try-on publisher model, the usual causes are:
+
+1. The model ID is stale.
+2. The selected region doesn't expose that model.
+3. The Google Cloud project doesn't have access to the model.
+
+This backend defaults to `virtual-try-on-001`, which is the current Virtual Try-On model used by the Google GenAI SDK examples.
 
 ### 3. Authenticate with Google Cloud
 
